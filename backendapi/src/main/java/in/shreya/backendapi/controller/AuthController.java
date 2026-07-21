@@ -1,0 +1,42 @@
+package in.shreya.backendapi.controller;
+
+import in.shreya.backendapi.io.AuthenticationRequest;
+import in.shreya.backendapi.io.AuthenticationResponse;
+import in.shreya.backendapi.service.AppUserDetailsService;
+import in.shreya.backendapi.util.JwtUtil;
+import lombok.AllArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api")
+@AllArgsConstructor
+public class AuthController {
+
+    private final AuthenticationManager authenticationManager;
+    private final AppUserDetailsService userDetailsService;
+    private final JwtUtil jwtUtil;
+
+    @PostMapping("/login")
+    public AuthenticationResponse login(@RequestBody AuthenticationRequest request) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+        final UserDetails userDetails = userDetailsService.loadUserByUsername(request.getEmail());
+        final String jwtToken = jwtUtil.generateToken(userDetails);
+
+        String role = userDetails.getAuthorities().stream()
+                .findFirst()
+                .map(GrantedAuthority::getAuthority)
+                .orElse("ROLE_USER")
+                .replace("ROLE_", "");
+
+        return new AuthenticationResponse(request.getEmail(), jwtToken, role);
+    }
+}
